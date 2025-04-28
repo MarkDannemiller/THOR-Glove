@@ -10,6 +10,7 @@
 #define SERVO_MAX_PULSE 2500
 #define MAX_CURRENT 2300 // 2.3 A to mA
 #define NUM_PORTS 1  // Number of finger ports
+#define LED_PIN 13   // Built-in LED pin
 
 // test for these values
 #define FSR_THRESH 2
@@ -22,11 +23,13 @@ float servo_angle;    // angle of targeted servo
 int counter;
 Servo servoSelect;  // Analog servos run at ~60 Hz updates
 
+uint32_t timer;
+
 
 //Parameters
 int FSR_PINS [NUM_PORTS] = {A0};
-int CURRENT_PINS [NUM_PORTS] = {A1};
-int SERVO_PINS [NUM_PORTS] = {1};
+int CURRENT_PINS [NUM_PORTS] = {A7};
+int SERVO_PINS [NUM_PORTS] = {5};
 Servo actuators [NUM_PORTS] = {Servo()};
 
 double angleToMicroseconds(int angle) {
@@ -41,6 +44,8 @@ void setAngle(Servo servo, int angle) {
 void setup() {
   Serial.begin(115200);
   analogReadResolution(12);  // 12-bit ADC
+  pinMode(LED_PIN, OUTPUT);  // Set LED pin as output
+  digitalWrite(LED_PIN, HIGH);  // Turn on the LED
 
   counter = 0;
 
@@ -48,15 +53,19 @@ void setup() {
     actuators[i].attach(SERVO_PINS[i]);
   }
 
-//   delay(2000);
+  
 
-//   // Test index finger servo
-//   setAngle(actuators[0], 0);
-//   delay(5000);
-//   setAngle(actuators[0], 90);
-//   delay(5000);
-//   setAngle(actuators[0], 0);
-//   delay(10000);
+  // delay(5000);
+
+  // // Test index finger servo
+  // setAngle(actuators[0], 0);
+  // delay(5000);
+  // setAngle(actuators[0], 90);
+  // delay(5000);
+  // setAngle(actuators[0], 0);
+  // delay(10000);
+
+  timer = millis();
 }
 
 void loop() {
@@ -67,17 +76,33 @@ void loop() {
   Serial.println("FSR Voltage: " + String(fsr_voltage));
 
   // get current reading
-  // adc_current = ACS712(CURRENT_PINS[counter], VCC, 4095, 100).mA_AC(); //  ACS712 20A uses 100 mV per A
-  adc_current = 0;
+  // A=20, R_sns = 50mOhms, VCC=3.3v
+  adc_read = analogRead(CURRENT_PINS[counter]);
+  adc_current = ( adc_read / 4095.0) * VCC / (20 * 0.05); // I = V/R = (VCC/20)/(50mOhms)
 
-  if (fsr_voltage > FSR_THRESH || adc_current < CURRENT_THRESH) {
-    servo_angle = (fsr_voltage / 2.75) * SERVO_MAX_ANGLE; // Map voltage (0-3V) to servo angle (0° to upper limit)
+  Serial.println("Servo Current: " + String(adc_current) + " raw: " + String(adc_read));
 
-    // cap servo angle within bounds
-    if (servo_angle < SERVO_MIN_ANGLE) servo_angle = SERVO_MIN_ANGLE;
-    if (servo_angle > SERVO_MAX_ANGLE) servo_angle = SERVO_MAX_ANGLE;
+  // if (fsr_voltage > FSR_THRESH || adc_current < CURRENT_THRESH) {
+  //   servo_angle = (fsr_voltage / 2.75) * SERVO_MAX_ANGLE; // Map voltage (0-3V) to servo angle (0° to upper limit)
 
-    setAngle(actuators[0], servo_angle);
+  //   // cap servo angle within bounds
+  //   if (servo_angle < SERVO_MIN_ANGLE) servo_angle = SERVO_MIN_ANGLE;
+  //   if (servo_angle > SERVO_MAX_ANGLE) servo_angle = SERVO_MAX_ANGLE;
+
+  //   setAngle(actuators[0], servo_angle);
+  // }
+
+  Serial.println("Timer: " + String(millis() - timer));
+
+  // Swtich from 180->0 every 2.5 seconds
+  if(millis() - timer > 5000) {
+    timer = millis();
+  }
+  else if(millis() - timer > 2500) {
+    setAngle(actuators[0], 180);
+  }
+  else {
+    setAngle(actuators[0], 0);
   }
 
   // increment counter
