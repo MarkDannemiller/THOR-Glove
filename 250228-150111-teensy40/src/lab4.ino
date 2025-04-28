@@ -39,11 +39,13 @@ int LED_PINS [NUM_LEDS] = {12,13};
 
 // Map servo angle to pulse width
 double angleToMicroseconds(int angle) {
+  Serial.println(map(angle, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
   return map(angle, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
 }
 
 // Write pwm to servo
 void writeToServo(int counter, float servo_angle) {
+  Serial.print(counter);
   servoSelect.attach(SERVO_PINS[counter]);
   servoSelect.writeMicroseconds(angleToMicroseconds((int)servo_angle+3)); // +3 to increase tension
   servoSelect.detach();
@@ -54,6 +56,9 @@ void setup() {
   analogReadResolution(12);  // 12-bit ADC
 
   counter = 0;
+  pinMode(8,INPUT_PULLDOWN);
+  pinMode(9,INPUT_PULLDOWN);
+  pinMode(10,INPUT_PULLDOWN);
 
   delay(2000);
 }
@@ -68,9 +73,9 @@ void loop() {
   adc_current = ACS712(CURRENT_PINS[counter], VCC, 4095, 100).mA_AC(); //  ACS712 20A uses 100 mV per A
 
   // button settings
-  if(BUTTON_PINS[0]) {        writeToServo(counter, SERVO_MAX_ANGLE);
-  } else if(BUTTON_PINS[1]) { writeToServo(counter, SERVO_MIN_ANGLE);
-  } else if(BUTTON_PINS[2]) { writeToServo(counter, SERVO_DEFAULT);
+  if(digitalRead(BUTTON_PINS[0])) {        writeToServo(counter, SERVO_MAX_ANGLE);
+  } else if(digitalRead(BUTTON_PINS[1])) { writeToServo(counter, SERVO_MIN_ANGLE);
+  } else if(digitalRead(BUTTON_PINS[2])) { writeToServo(counter, SERVO_DEFAULT);
 
   // general control logic
   } else if (adc_voltage > FSR_THRESH && adc_current < CURRENT_THRESH) {
@@ -85,6 +90,8 @@ void loop() {
     // write pwm to servo
     writeToServo(counter, servo_angle);
   }
+
+  writeToServo(counter, 180);
 
   // increment counter
   counter = (counter+1)%NUM_FINGERS;
