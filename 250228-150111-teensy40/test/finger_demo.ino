@@ -17,12 +17,14 @@
 #define UPDATE_INTERVAL 200  // milliseconds
 
 // Create finger object
-Finger finger(SERVO_PIN, FSR_PIN, STRETCH_PIN, CURRENT_PIN, 
+Finger finger(SERVO_PIN, FSR_PIN, //STRETCH_PIN, 
+              CURRENT_PIN, 
               VCC, 12, // VCC = 3.3V, 12-bit ADC
               SERVO_MIN_ANGLE, SERVO_MAX_ANGLE, 
-              SERVO_MIN_PULSE, SERVO_MAX_PULSE,
-              6.0, // 6 inch relaxed length
-              350.0); // 350 ohms per inch when relaxed
+              SERVO_MIN_PULSE, SERVO_MAX_PULSE//,
+              //6.0, // 6 inch relaxed length
+              //350.0
+            ); // 350 ohms per inch when relaxed
 
 unsigned long lastUpdate = 0;
 unsigned long demoTimer = 0;
@@ -59,20 +61,21 @@ void loop() {
     lastUpdate = currentMillis;
     
     // Update all sensor readings
-    finger.update();
+    //finger.update();
     
     // Print sensor values
     Serial.println("\n--- Sensor Readings ---");
     
     // FSR values
     Serial.print("FSR: Raw=");
-    Serial.print(finger.getFSRRaw());
+    //Serial.print(finger.getFSRRaw());
     Serial.print(", Voltage=");
     Serial.print(finger.getFSRVoltage(), 3);
     Serial.print("V, Force=");
-    Serial.print(finger.getFSRForce(), 1);
+    //Serial.print(finger.getFSRForce(), 1);
     Serial.println("N");
     
+    /*
     // Stretch sensor values
     Serial.print("Stretch: Raw=");
     Serial.print(finger.getStretchRaw());
@@ -83,10 +86,11 @@ void loop() {
     Serial.print("Ω, Length=");
     Serial.print(finger.getStretchLength(), 1);
     Serial.println("\"");
+    */
     
     // Current sensor values
     Serial.print("Current: Raw=");
-    Serial.print(finger.getCurrentRaw());
+    //Serial.print(finger.getCurrentRaw());
     Serial.print(", Current=");
     Serial.print(finger.getCurrentValue() * 1000, 1); // Convert to mA
     Serial.println("mA");
