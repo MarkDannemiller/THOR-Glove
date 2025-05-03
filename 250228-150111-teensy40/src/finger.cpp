@@ -4,7 +4,9 @@ Finger::Finger(int _servoPin, int _fsrPin,
                int _currentPin,
                float _vcc, int _adcResolution,
                int _minAngle, int _maxAngle,
-               int _minPulse, int _maxPulse) {
+               int _minPulse, int _maxPulse,
+               int _lowerLimit, int _upperLimit,
+               bool _invert) {
     
     // Assign pins
     servoPin = _servoPin;
@@ -18,6 +20,9 @@ Finger::Finger(int _servoPin, int _fsrPin,
     maxAngle = _maxAngle;
     minPulse = _minPulse;
     maxPulse = _maxPulse;
+    invert = _invert;
+    upperLimit = _upperLimit;
+    lowerLimit = _lowerLimit;
     
     // Initialize readings
     fsrVoltage = 0;
@@ -51,6 +56,7 @@ float Finger::getCurrentValue() {
     return currentValue = readVoltage(currentPin) / (20 * 0.05); // I = V/R = (voltage)/(20 * 50mOhms)
 } 
 
+// current logic doesnt use this function
 float Finger::calcAngle() {
     // Map voltage (0-3V) to servo angle (0° to upper limit)
     return (fsrVoltage / 2.75) * maxAngle;
@@ -58,14 +64,14 @@ float Finger::calcAngle() {
 
 void Finger::setAngle(float angle) {
     // Constrain angle to valid range
-    int constrainedAngle = constrain(angle, minAngle, maxAngle);
+    int constrainedAngle = constrain(angle, lowerLimit, upperLimit);
+    if (invert) constrainedAngle = maxAngle - constrainedAngle;
     currentAngle = constrainedAngle;
     
     // Convert to microseconds and write to servo
     servo.writeMicroseconds(angleToMicroseconds(constrainedAngle));
 
-    Serial.print("set angle ");
-    Serial.print(angle);
+    Serial.println("Servo " + String(servo.attached()) + " angle: " + String(angle) + "\t");
 }
 
 float Finger::getAngle() {

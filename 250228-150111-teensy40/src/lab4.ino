@@ -2,22 +2,28 @@
 #include "../src/finger.h"
 
 // calibration constants
-#define VCC 3.3         // 3.3V Logic
-#define ADC_BITS 12
-#define SERVO_DEFAULT   90 // needs adjusting because of flipped servos
-#define NUM_FINGERS 5
-#define NUM_BUTTONS 3
-#define NUM_LEDS    2
-#define MAX_CURRENT 2300 // 2.3 A to mA
+#define VCC           3.3   // 3.3V Logic
+#define ADC_BITS      12
+#define SERVO_DEFAULT 90    // in degrees
+#define NUM_FINGERS   5
+#define NUM_BUTTONS   3
+#define NUM_LEDS      2
+#define MAX_CURRENT   2300  // 2.3 A to mA
+#define UPPER_LIMIT   30
+#define LOWER_LIMIT   0
+#define INCREMENT     2
 
 // test for these values
-#define FSR_THRESH 2
-#define CURRENT_THRESH 3
+#define FSR_THRESH_HIGH 2
+#define FSR_THRESH_LOW  1
+#define CURRENT_THRESH  3
 
-float fsr_voltage;              // adc_read converted to voltage value
-float current;                  // adc_read converted to current value
+// reusable finger variables
+float fsr_voltage;  // fsr voltage value
+float current;      // current sensor value
 int counter;
 
+// pin numbers
 int BUTTON_PINS [NUM_BUTTONS] = {8,9,10}; // max, min, start
 int LED_PINS [NUM_LEDS] = {12,13};
 
@@ -25,24 +31,21 @@ int LED_PINS [NUM_LEDS] = {12,13};
 int SERVO_MIN [2] = {0, 500};
 int SERVO_MAX [2] = {270, 2500};
 
-// finger definitions
-Finger PINKY = Finger(2, 14, 15, VCC, ADC_BITS, 
-  SERVO_MIN[0], SERVO_MAX[0], SERVO_MIN[1], SERVO_MAX[1]);
-
-Finger RING = Finger(3, 16, 17, VCC, ADC_BITS, 
-  SERVO_MIN[0], SERVO_MAX[0], SERVO_MIN[1], SERVO_MAX[1]);
-
-Finger MIDDLE = Finger(4, 18, 19, VCC, ADC_BITS, 
-  SERVO_MIN[0], SERVO_MAX[0], SERVO_MIN[1], SERVO_MAX[1]);
-
-Finger INDEX = Finger(5, 20, 21, VCC, ADC_BITS, 
-  SERVO_MIN[0], SERVO_MAX[0], SERVO_MIN[1], SERVO_MAX[1]);
-
-Finger THUMB = Finger(7, 22, 23, VCC, ADC_BITS, 
-  SERVO_MIN[0], SERVO_MAX[0], SERVO_MIN[1], SERVO_MAX[1]);
-
 // finger list
-Finger fingers[NUM_FINGERS] = {PINKY, RING, MIDDLE, INDEX, THUMB};
+Finger FINGERS[NUM_FINGERS] = {
+  // servoPin, fsrPin, currentPin, VCC, num ADC bits, 
+  // servo min angle, servo max angle, servo min pulse, servo max pulse, invert
+  Finger(2, 14, 15, VCC, ADC_BITS, SERVO_MIN[0], SERVO_MAX[0], 
+    SERVO_MIN[1], SERVO_MAX[1], LOWER_LIMIT, UPPER_LIMIT, false), // pinky
+  Finger(3, 16, 17, VCC, ADC_BITS, SERVO_MIN[0], SERVO_MAX[0], 
+    SERVO_MIN[1], SERVO_MAX[1], LOWER_LIMIT, UPPER_LIMIT, false), // ring
+  Finger(4, 18, 19, VCC, ADC_BITS, SERVO_MIN[0], SERVO_MAX[0], 
+    SERVO_MIN[1], SERVO_MAX[1], LOWER_LIMIT, UPPER_LIMIT, true), // middle
+  Finger(5, 20, 21, VCC, ADC_BITS, SERVO_MIN[0], SERVO_MAX[0], 
+    SERVO_MIN[1], SERVO_MAX[1], LOWER_LIMIT, UPPER_LIMIT, true), // index
+  Finger(7, 22, 23, VCC, ADC_BITS, SERVO_MIN[0], SERVO_MAX[0], 
+    SERVO_MIN[1], SERVO_MAX[1], LOWER_LIMIT, UPPER_LIMIT, false)  // thumb
+};
 
 
 void setup() {
@@ -53,9 +56,12 @@ void setup() {
   // setup button pins
   for (int i = 8; i <= 10; i++) { pinMode(i,INPUT_PULLDOWN); }
 
+  // initialize each finger
+  for (int i = 0; i < NUM_FINGERS; i++) { FINGERS[i].begin(); }
+
   // set LED status
-  pinMode(LED_PINS[2], OUTPUT);
-  digitalWrite(LED_PINS[2], HIGH);
+  pinMode(LED_PINS[1], OUTPUT);
+  digitalWrite(LED_PINS[1], HIGH);
 
   delay(2000);
 }
@@ -63,24 +69,34 @@ void setup() {
 void loop() {
 
   // get voltage and current readings
-  fsr_voltage = fingers[counter].getFSRVoltage();
-  current = fingers[counter].getCurrentValue();
+  fsr_voltage = FINGERS[counter].getFSRVoltage();
+  current = FINGERS[counter].getCurrentValue();
+
+  // test data
+  Serial.print(counter);
+  Serial.print("\tfsr voltage: ");
+  Serial.print(fsr_voltage);
+  Serial.print("\tcurrent: ");
+  Serial.print(current);
+/*
+  // software overcurrent 
+  if(current > CURRENT_THRESH) { FINGERS[counter].setAngle(FINGERS[counter].getAngle()+INCREMENT);
 
   // button settings
-  if(digitalRead(BUTTON_PINS[0])) {        fingers[counter].setAngle(SERVO_MAX[0]);
-  } else if(digitalRead(BUTTON_PINS[1])) { fingers[counter].setAngle(SERVO_MIN[0]);
-  } else if(digitalRead(BUTTON_PINS[2])) { fingers[counter].setAngle(SERVO_DEFAULT);
+  } else if(digitalRead(BUTTON_PINS[0])) { FINGERS[counter].setAngle(SERVO_MAX[0]);
+  } else if(digitalRead(BUTTON_PINS[1])) { FINGERS[counter].setAngle(SERVO_MIN[0]);
+  } else if(digitalRead(BUTTON_PINS[2])) { FINGERS[counter].setAngle(SERVO_DEFAULT);
 
   // general control logic
-  } else if (fsr_voltage > FSR_THRESH && current < CURRENT_THRESH) {
-    fingers[counter].setAngle(fingers[counter].calcAngle());
-  }
-
+  // no need for angle limits because setAngle has them built in
+  } else if (fsr_voltage > FSR_THRESH_HIGH) { FINGERS[counter].setAngle(FINGERS[counter].getAngle()+INCREMENT); 
+  } else if (fsr_voltage < FSR_THRESH_LOW) { FINGERS[counter].setAngle(FINGERS[counter].getAngle()-INCREMENT); }
+  */
   // test angle
-  fingers[counter].setAngle(180);
+  FINGERS[3].setAngle(20*(counter%2));
 
   // increment counter
-  counter = (counter+1)%NUM_FINGERS;
+  counter = (counter + 1) % NUM_FINGERS;
 
   delay(200);
 }

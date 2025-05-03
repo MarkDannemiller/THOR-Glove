@@ -18,6 +18,9 @@ class Finger {
     int minPulse;
     int maxPulse;
     float currentAngle;
+    bool invert;
+    int upperLimit;
+    int lowerLimit;
     
     // FSR parameters
     float fsrVoltage;
@@ -37,8 +40,9 @@ class Finger {
           int _currentPin, 
            float _vcc = 3.3, int _adcResolution = 12, 
            int _minAngle = 0, int _maxAngle = 180,
-           int _minPulse = 500, int _maxPulse = 2500
-          );
+           int _minPulse = 500, int _maxPulse = 2500,
+           int _lowerLimit = 0, int _upperLimit = 180,
+           bool _invert = false);
     
     // Initialization
     void begin();
