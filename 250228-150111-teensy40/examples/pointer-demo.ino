@@ -9,7 +9,7 @@
 #define SERVO_MIN_PULSE 500
 #define SERVO_MAX_PULSE 2500
 #define MAX_CURRENT 2300 // 2.3 A to mA
-#define NUM_PORTS 1  // Number of finger ports
+#define NUM_PORTS 5  // Number of finger ports
 #define LED_PIN 13   // Built-in LED pin
 
 // test for these values
@@ -27,9 +27,9 @@ uint32_t timer;
 
 
 //Parameters
-int FSR_PINS [NUM_PORTS] = {A0};
-int CURRENT_PINS [NUM_PORTS] = {A7};
-int SERVO_PINS [NUM_PORTS] = {5};
+int FSR_PINS [NUM_PORTS] = {A0, A1, A2, A3, A4};
+int CURRENT_PINS [NUM_PORTS] = {A5, A6, A7, A8, A9};
+int SERVO_PINS [NUM_PORTS] = {3, 5, 2, 7, 4};
 Servo actuators [NUM_PORTS] = {Servo()};
 
 double angleToMicroseconds(int angle) {
@@ -94,15 +94,17 @@ void loop() {
 
   Serial.println("Timer: " + String(millis() - timer));
 
-  // Swtich from 180->0 every 2.5 seconds
-  if(millis() - timer > 5000) {
-    timer = millis();
-  }
-  else if(millis() - timer > 2500) {
-    setAngle(actuators[0], 180);
-  }
-  else {
-    setAngle(actuators[0], 0);
+  for(int i=0; i<NUM_PORTS; i++) {
+    // Swtich from 30->0 every 2.5 seconds
+    if(millis() - timer > 10000) {
+      timer = millis();
+    }
+    else if(millis() - timer > 5000) {
+      setAngle(actuators[i], 30);
+    }
+    else {
+      setAngle(actuators[i], 0);
+    }
   }
 
   // increment counter
