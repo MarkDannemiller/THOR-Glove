@@ -27,14 +27,15 @@ Finger::Finger(int _servoPin, int _fsrPin,
     // Initialize readings
     fsrVoltage = 0;
     currentValue = 0;
-    currentAngle = 0;
+    userAngle = lowerLimit;           // Initialize to relaxed position (15°)
+    servoAngle = invert ? (upperLimit - lowerLimit) : lowerLimit;  // Map to raw servo angle
 }
 
 void Finger::begin() {
     // Attach servo to pin
     servo.attach(servoPin, minPulse, maxPulse);
     
-    // Set initial position
+    // Set initial position in user space
     setAngle(lowerLimit);
 }
 
@@ -57,6 +58,10 @@ float Finger::getCurrentValue() {
     return currentValue = readVoltage(currentPin) / (20 * 0.05); // I = V/R = (voltage)/(20 * 50mOhms)
 } 
 
+float Finger::getCurrentVoltage() {
+    return readVoltage(currentPin);
+}
+
 // current logic doesnt use this function
 float Finger::calcAngle() {
     // Map voltage (0-3V) to servo angle (0° to upper limit)
@@ -64,53 +69,48 @@ float Finger::calcAngle() {
 }
 
 void Finger::setAngle(float angle) {
-
-    if(!servo.attached()) {
+    if (!servo.attached()) {
         servo.attach(servoPin, minPulse, maxPulse);
     }
 
-    // Constrain angle to valid range
-    if (invert) angle = upperLimit - angle;
-    float constrainedAngle = constrain(angle, lowerLimit, upperLimit);
-    constrainedAngle = constrain(constrainedAngle, minAngle, maxAngle);
-    currentAngle = constrainedAngle;
-    
-    // Convert to microseconds and write to servo
-    servo.writeMicroseconds(angleToMicroseconds(constrainedAngle));
+    // Clamp user request first
+    angle = constrain(angle, lowerLimit, upperLimit);   // 15° to 290° (logical)
 
-    Serial.println("Servo " + String(servo.attached()) + "(pin " + servoPin + ") angle: " + String(constrainedAngle) + "\t");
+    // Map to raw servo space if this finger is physically reversed
+    float raw = invert ? (upperLimit - angle) : angle;
+    raw = constrain(raw, minAngle, maxAngle);           // 0° to 270° absolute
+
+    userAngle = angle;   // Remember logical position
+    servoAngle = raw;    // Remember raw servo position
+
+    servo.writeMicroseconds(angleToMicroseconds((int)raw));
 }
 
 float Finger::getAngle() {
-    return currentAngle;
+    return userAngle;  // Return logical position
 }
 
 // Detach from servo (used in overcurrent condition)
-void Finger::release()
-{
+void Finger::release() {
     servo.detach();
 }
 
 // Sets true angle of the servo, without any reverse logic
-void Finger::setTrueAngle(float angle)
-{
-    if(!servo.attached()) {
+void Finger::setTrueAngle(float raw) {
+    if (!servo.attached()) {
         servo.attach(servoPin, minPulse, maxPulse);
     }
 
-    // Constrain angle to valid range, first within param limits and then within device limits
-    float constrainedAngle = constrain(angle, lowerLimit, upperLimit);
-    constrainedAngle = constrain(constrainedAngle, minAngle, maxAngle);
-    currentAngle = constrainedAngle;
-    
-    // Convert to microseconds and write to servo
-    servo.writeMicroseconds(angleToMicroseconds(constrainedAngle));
+    // Constrain to valid servo range
+    raw = constrain(raw, minAngle, maxAngle);
 
-    Serial.println("Servo " + String(servo.attached()) + "(pin " + servoPin + ") real angle: " + String(constrainedAngle) + "\t");
+    servoAngle = raw;
+    userAngle = invert ? (upperLimit - raw) : raw;   // Keep logical shadow in sync
+
+    servo.writeMicroseconds(angleToMicroseconds((int)raw));
 }
 
 // Returns true angle that the servo has been set to, regardless of reversed value
-float Finger::getTrueAngle()
-{
-    return invert ? maxAngle - currentAngle : currentAngle;
+float Finger::getTrueAngle() {
+    return servoAngle;  // Return raw servo position
 }

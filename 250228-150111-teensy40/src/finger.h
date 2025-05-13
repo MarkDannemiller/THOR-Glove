@@ -17,7 +17,8 @@ class Finger {
     float maxAngle;
     int minPulse;
     int maxPulse;
-    float currentAngle;
+    float userAngle;    // User-space angle (15° relaxed, 290° contracted)
+    float servoAngle;   // Raw servo angle sent to motor
     bool invert;
     
     // FSR parameters
@@ -60,6 +61,7 @@ class Finger {
     
     // Current functions
     float getCurrentValue(); // in Amperes
+    float getCurrentVoltage(); // Get raw voltage from current sensor
 
     float upperLimit;
     float lowerLimit;
